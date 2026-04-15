@@ -1,0 +1,12 @@
+[
+  { "id": "analysis",     "name": "Analysis",      "name_zh": "分析",     "icon": "chart" },
+  { "id": "formatting",   "name": "Formatting",    "name_zh": "格式",     "icon": "type" },
+  { "id": "export",       "name": "Export",         "name_zh": "导出",     "icon": "download" },
+  { "id": "productivity", "name": "Productivity",   "name_zh": "效率",     "icon": "zap" },
+  { "id": "ui",           "name": "Interface",      "name_zh": "界面",     "icon": "layout" },
+  { "id": "language",     "name": "Language",        "name_zh": "语言",     "icon": "globe" },
+  { "id": "writing",      "name": "Writing Aids",   "name_zh": "写作辅助", "icon": "pen-tool" },
+  { "id": "publishing",   "name": "Publishing",     "name_zh": "出版",     "icon": "book-open" },
+  { "id": "theme",        "name": "Themes",         "name_zh": "主题",     "icon": "palette" },
+  { "id": "other",        "name": "Other",          "name_zh": "其他",     "icon": "puzzle" }
+]
