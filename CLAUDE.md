@@ -37,31 +37,41 @@ Novelist Marketplace is the public plugin registry for the Novelist ecosystem.
 │   └── <plugin-id>/
 │       ├── manifest.toml
 │       ├── README.md
-│       ├── icon.png
-│       └── releases/
-│           └── <version>.zip
+│       └── icon.png            # optional, 128x128
 ├── categories.json
-├── registry.json
+├── registry.json               # generated, DO NOT EDIT
 ├── scripts/
-└── .github/workflows/
+│   ├── validate.ts
+│   ├── build-registry.ts
+│   └── shared/
+└── .github/
+    ├── workflows/
+    │   ├── validate-pr.yml
+    │   ├── publish.yml
+    │   └── update-counts.yml   # daily cron for download counts
+    └── PULL_REQUEST_TEMPLATE.md
 ```
+
+**Note:** This repository stores metadata only — no plugin code or binary assets. Plugin ZIPs are hosted as GitHub Release assets on each plugin author's own repository.
 
 ## Planned Core Contracts
 
 - `plugins/<id>/manifest.toml` — plugin metadata submitted by authors
 - `plugins/<id>/README.md` — plugin documentation shown to reviewers/users
-- `plugins/<id>/releases/<version>.zip` — installable release archive
-- `categories.json` — canonical marketplace categories, including CJK names
+- `plugins/<id>/icon.png` — plugin icon (optional, 128x128)
+- `categories.json` — canonical marketplace categories (10 categories with CJK names)
 - `registry.json` — generated index consumed by `Novelist-app` and `Novelist-homepage`
+
+Plugin binaries (`<plugin-id>-<version>.zip`) are hosted on each plugin author's GitHub Releases, not in this repository.
 
 ## Working Rules
 
 - `registry.json` should be generated, not edited by hand
 - Plugin IDs should be globally unique, stable, and kebab-case
-- ZIP releases should be immutable once published
+- Plugin releases (on author repos) should be immutable once published
 - CI should be the authoritative gate for format validation
+- CI fetches and validates plugin ZIPs from authors' GitHub Releases during PR validation
 - Review should focus on safety, clarity, and installability — not only schema correctness
-- Keep the repo static-host friendly so raw GitHub URLs can serve release assets and metadata
 
 ## Planned Commands
 
