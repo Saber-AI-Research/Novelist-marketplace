@@ -162,6 +162,31 @@ describe("ZIP validation", () => {
     const errors = await validateZipArchive(buffer, manifest());
     expect(errors.some((error) => error.includes("assets/large.js") && error.includes("2MB uncompressed limit"))).toBe(true);
   });
+
+  it("caps the total decompressed bytes across many entries", async () => {
+    const zip = new JSZip();
+    zip.file("manifest.toml", manifestToml);
+    zip.file("index.html", "<main>Word Frequency</main>");
+    // Each file stays under the 2MB per-file cap; together they exceed 20MB.
+    const chunk = "// padding\n".repeat(150_000);
+    for (let i = 0; i < 16; i++) zip.file(`assets/part-${i}.js`, chunk);
+    const buffer = await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
+
+    const errors = await validateZipArchive(buffer, manifest());
+    expect(errors).toContain("ZIP exceeds 20MB total uncompressed limit");
+  });
+
+  it("rejects archives with too many entries before inflating them", async () => {
+    const zip = new JSZip();
+    zip.file("manifest.toml", manifestToml);
+    zip.file("index.html", "<main>Word Frequency</main>");
+    for (let i = 0; i < 1000; i++) zip.file(`assets/f-${i}.js`, "export {};\n");
+    const buffer = await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
+
+    const errors = await validateZipArchive(buffer, manifest());
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/^ZIP contains \d+ entries; the limit is 1000$/);
+  });
 });
 
 describe("ZIP download boundaries", () => {

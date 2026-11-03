@@ -11,6 +11,10 @@ export const REGISTRY_FILE = resolve(ROOT_DIR, "registry.json");
 
 export const MAX_ZIP_SIZE = 5 * 1024 * 1024;
 export const MAX_JS_SIZE = 2 * 1024 * 1024;
+/** Cap on entries in one plugin ZIP, so a tiny archive cannot list millions of files. */
+export const MAX_ZIP_ENTRIES = 1000;
+/** Cumulative decompressed bytes CI will inflate and scan across all entries (zip-bomb guard). */
+export const MAX_ZIP_UNCOMPRESSED_TOTAL = 20 * 1024 * 1024;
 export const MAX_AVG_LINE_LENGTH = 200;
 
 /** Hard timeout for fetching an (untrusted) plugin ZIP from a release. */

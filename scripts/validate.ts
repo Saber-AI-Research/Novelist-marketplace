@@ -13,6 +13,8 @@ import {
   CATEGORIES_FILE,
   MAX_ZIP_SIZE,
   MAX_JS_SIZE,
+  MAX_ZIP_ENTRIES,
+  MAX_ZIP_UNCOMPRESSED_TOTAL,
   MAX_AVG_LINE_LENGTH,
   DANGEROUS_PATTERNS,
   REQUIRED_ZIP_FILES,
@@ -59,7 +61,18 @@ function isHtmlPath(path: string): boolean {
   return /\.html?$/i.test(path);
 }
 
-async function readZipText(entry: JSZip.JSZipObject, maxBytes: number): Promise<string> {
+/** Remaining cumulative decompression allowance shared by every entry of one ZIP. */
+interface InflateBudget {
+  remaining: number;
+}
+
+class InflateBudgetExceeded extends Error {
+  constructor() {
+    super(`ZIP exceeds ${MAX_ZIP_UNCOMPRESSED_TOTAL / 1024 / 1024}MB total uncompressed limit`);
+  }
+}
+
+async function readZipText(entry: JSZip.JSZipObject, maxBytes: number, budget?: InflateBudget): Promise<string> {
   const chunks: Uint8Array[] = [];
   let size = 0;
   // JSZip uses a legacy readable-stream implementation without async iteration.
@@ -67,6 +80,10 @@ async function readZipText(entry: JSZip.JSZipObject, maxBytes: number): Promise<
   for await (const chunk of stream) {
     const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     size += bytes.byteLength;
+    if (budget) {
+      budget.remaining -= bytes.byteLength;
+      if (budget.remaining < 0) throw new InflateBudgetExceeded();
+    }
     if (size > maxBytes) {
       throw new Error(`exceeds ${maxBytes / 1024 / 1024}MB uncompressed limit`);
     }
@@ -78,13 +95,15 @@ async function readZipText(entry: JSZip.JSZipObject, maxBytes: number): Promise<
 async function validateJavaScriptEntry(
   entry: JSZip.JSZipObject,
   manifest: Manifest,
+  budget?: InflateBudget,
 ): Promise<string[]> {
   const errors: string[] = [];
   const entryName = entry.name;
   let jsContent: string;
   try {
-    jsContent = await readZipText(entry, MAX_JS_SIZE);
+    jsContent = await readZipText(entry, MAX_JS_SIZE, budget);
   } catch (error) {
+    if (error instanceof InflateBudgetExceeded) throw error;
     return [`${entryName}: ${error}`];
   }
 
@@ -120,13 +139,15 @@ async function validateJavaScriptEntry(
 async function validateHtmlEntry(
   entry: JSZip.JSZipObject,
   manifest: Manifest,
+  budget?: InflateBudget,
 ): Promise<string[]> {
   const errors: string[] = [];
   const entryName = entry.name;
   let htmlContent: string;
   try {
-    htmlContent = await readZipText(entry, MAX_ZIP_SIZE);
+    htmlContent = await readZipText(entry, MAX_ZIP_SIZE, budget);
   } catch (error) {
+    if (error instanceof InflateBudgetExceeded) throw error;
     return [`${entryName}: ${error}`];
   }
 
@@ -226,6 +247,9 @@ async function validateZipArchive(
   }
 
   const entries = Object.values(zip.files);
+  if (entries.length > MAX_ZIP_ENTRIES) {
+    return [`ZIP contains ${entries.length} entries; the limit is ${MAX_ZIP_ENTRIES}`];
+  }
   for (const entry of entries) {
     const originalName = originalZipEntryName(entry);
     if (isUnsafeZipPath(originalName) || isUnsafeZipPath(entry.name)) {
@@ -258,16 +282,20 @@ async function validateZipArchive(
     }
   }
 
-  const scriptEntries = entries.filter((entry) => !entry.dir && isJavaScriptPath(entry.name));
-  for (const scriptEntry of scriptEntries) {
-    const jsErrors = await validateJavaScriptEntry(scriptEntry, manifest);
-    errors.push(...jsErrors);
-  }
+  const budget: InflateBudget = { remaining: MAX_ZIP_UNCOMPRESSED_TOTAL };
+  try {
+    const scriptEntries = entries.filter((entry) => !entry.dir && isJavaScriptPath(entry.name));
+    for (const scriptEntry of scriptEntries) {
+      errors.push(...await validateJavaScriptEntry(scriptEntry, manifest, budget));
+    }
 
-  const htmlEntries = entries.filter((entry) => !entry.dir && isHtmlPath(entry.name));
-  for (const htmlEntry of htmlEntries) {
-    const htmlErrors = await validateHtmlEntry(htmlEntry, manifest);
-    errors.push(...htmlErrors);
+    const htmlEntries = entries.filter((entry) => !entry.dir && isHtmlPath(entry.name));
+    for (const htmlEntry of htmlEntries) {
+      errors.push(...await validateHtmlEntry(htmlEntry, manifest, budget));
+    }
+  } catch (error) {
+    if (!(error instanceof InflateBudgetExceeded)) throw error;
+    errors.push(error.message);
   }
 
   return errors;
