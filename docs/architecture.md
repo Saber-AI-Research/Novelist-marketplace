@@ -1,4 +1,4 @@
-# Architecture Plan
+# Architecture
 
 ## Repository Layout
 
@@ -50,7 +50,7 @@ The `download_url` in `registry.json` points to:
 https://github.com/<author>/<plugin-repo>/releases/download/v<version>/<plugin-id>-<version>.zip
 ```
 
-GitHub Release assets are CDN-backed, have no rate limiting, provide native download counts, and support proper caching headers.
+GitHub Release assets provide CDN delivery, native download counts, and caching headers.
 
 ## Download Counting
 
@@ -81,28 +81,29 @@ This requires only a `GITHUB_TOKEN` with public repo read access. Zero cost, zer
 
 - GitHub Release exists at the declared `repo` + `version`
 - ZIP contains `manifest.toml`
-- ZIP contains executable entry (`index.js` or `index.html`)
-- Manifest inside ZIP matches submitted `manifest.toml`
+- ZIP contains the declared `[ui].entry`, or `index.js` for command plugins
+- Parsed manifest inside ZIP matches all submitted plugin, UI, and marketplace metadata
 - Archive size below 5MB threshold
 
 ### Security Checks (Automated)
 
 - No `eval()`, `new Function()`, or dynamic code generation in JS
 - No file system escape patterns (`../`, absolute paths)
-- No network access attempts (unless `permissions` includes `network`)
-- `index.js` < 2MB, total ZIP < 5MB
-- No minified/obfuscated code (heuristic: average line length < 200 chars)
+- Network access requires `net`, `network`, or `ai:http`
+- Each JavaScript file is at most 2MB after decompression; inspected HTML and manifest files are at most 5MB each; downloaded ZIP is at most 5MB
+- No minified/obfuscated JavaScript (heuristic: average line length < 200 chars)
 
 ### Registry Build-Level
 
-- Generated `registry.json` is deterministic
 - Entries sorted predictably
-- Timestamps/version metadata updated consistently
+- Plugin timestamps come from git history; the registry timestamp records the build time
+- Metadata validation failures abort generation
 
 ## Security Model
 
 - Marketplace review is advisory, not a full security guarantee
-- All plugins run in QuickJS sandbox with permission tiers (read, write, execute)
+- QuickJS command plugins expose document reads with `read` and replacement with `write`; the command sandbox exposes no filesystem or network API
+- UI plugins declare bridge permissions such as `ai:http` and `ai:claude-cli`; access also depends on the app's host policy
 - Automated static checks flag dangerous patterns
 - Permission declarations are visible during review and in generated registry data
 - Built artifacts never require executing arbitrary submission code during CI
@@ -133,3 +134,5 @@ On merge to main, `publish.yml` sends a `repository_dispatch` event:
 - No database or always-on backend required
 - Static artifacts cached by clients
 - GitHub Releases as CDN for plugin distribution
+- Publish and count-update workflows share a concurrency group to serialize registry writes
+- Draft seed entries are validated as metadata and omitted from release downloads and generated registry data

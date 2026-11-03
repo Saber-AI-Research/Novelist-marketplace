@@ -4,7 +4,7 @@
 
 Novelist Marketplace is the public plugin registry for the Novelist ecosystem.
 
-**Current status**: planning only. This repository is being scaffolded for documentation and implementation planning. Do not assume scripts, CI, or schemas already exist unless they are explicitly added later.
+**Current status**: TypeScript manifest and release validation, registry generation, GitHub Actions publishing, and draft seed metadata are implemented. Seed entries remain unpublished until their release ZIPs exist.
 
 ## Mission
 
@@ -13,7 +13,7 @@ Novelist Marketplace is the public plugin registry for the Novelist ecosystem.
 - Build and publish `registry.json` as the source of truth for the app and website
 - Keep the submission pipeline simple, reviewable, and safe
 
-## Planned Tech Stack
+## Tech Stack
 
 - **Repository model**: GitHub repository with PR-based submissions
 - **Automation**: GitHub Actions
@@ -22,7 +22,7 @@ Novelist Marketplace is the public plugin registry for the Novelist ecosystem.
 - **Testing**: Vitest for validation/build scripts
 - **Data formats**: TOML, JSON, Markdown, ZIP
 
-## Planned Repository Shape
+## Repository Shape
 
 ```text
 .
@@ -31,8 +31,7 @@ Novelist Marketplace is the public plugin registry for the Novelist ecosystem.
 │   ├── README.md
 │   ├── project-overview.md
 │   ├── architecture.md
-│   ├── registry-spec.md
-│   └── roadmap.md
+│   └── registry-spec.md
 ├── plugins/
 │   └── <plugin-id>/
 │       ├── manifest.toml
@@ -54,7 +53,7 @@ Novelist Marketplace is the public plugin registry for the Novelist ecosystem.
 
 **Note:** This repository stores metadata only — no plugin code or binary assets. Plugin ZIPs are hosted as GitHub Release assets on each plugin author's own repository.
 
-## Planned Core Contracts
+## Core Contracts
 
 - `plugins/<id>/manifest.toml` — plugin metadata submitted by authors
 - `plugins/<id>/README.md` — plugin documentation shown to reviewers/users
@@ -73,15 +72,14 @@ Plugin binaries (`<plugin-id>-<version>.zip`) are hosted on each plugin author's
 - CI fetches and validates plugin ZIPs from authors' GitHub Releases during PR validation
 - Review should focus on safety, clarity, and installability — not only schema correctness
 
-## Planned Commands
-
-These are target commands for the future implementation, not commands that exist yet:
+## Commands
 
 ```bash
 pnpm install
 pnpm validate
 pnpm build:registry
 pnpm test
+pnpm typecheck
 ```
 
 ## Integration Points
@@ -89,12 +87,5 @@ pnpm test
 - **Consumes from authors**: plugin PR submissions
 - **Serves to Novelist-app**: `registry.json`, release ZIP download URLs
 - **Serves to Novelist-homepage**: `registry.json`, plugin metadata, docs assets
-- **Source design doc**: `../Novelist-app/docs/plugin-marketplace-design.md`
+- **Durable contracts**: [Registry specification](docs/registry-spec.md) and [architecture](docs/architecture.md)
 
-## Initial Milestones
-
-1. Finalize repository contracts and contributor workflow
-2. Define schema and validation rules for manifests/releases
-3. Implement registry build pipeline
-4. Add CI for PR validation and publish flow
-5. Seed the repository with example plugins

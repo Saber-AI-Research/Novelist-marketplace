@@ -1,0 +1,53 @@
+name: Publish Registry
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "plugins/**"
+      - "categories.json"
+      - "scripts/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/publish.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: registry-write
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build:registry
+
+      - name: Commit registry.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add registry.json
+          git diff --cached --quiet || git commit -m "chore: rebuild registry.json"
+          git push
+
+      - name: Trigger homepage rebuild
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.HOMEPAGE_TRIGGER_TOKEN }}
+          repository: Saber-AI-Research/Novelist-homepage
+          event-type: registry-updated

@@ -19,23 +19,37 @@ plugins/<plugin-id>/
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | string | Unique plugin identifier, kebab-case |
-| `name` | string | Human-readable display name |
-| `version` | string | Semantic version (e.g., `1.0.0`) |
-| `description` | string | One-line description |
-| `author` | string | Author name or handle |
-| `repo` | string | GitHub repository URL (e.g., `https://github.com/alice/novelist-word-frequency`) |
-| `permissions` | string[] | Required permission tiers: `read`, `write`, `execute`, `ui`, `network`, `clipboard` |
-| `category` | string | One of the categories defined in `categories.json` |
-| `min_novelist_version` | string | Minimum compatible Novelist version |
+| `[plugin].id` | string | Unique plugin identifier, kebab-case |
+| `[plugin].name` | string | Human-readable display name |
+| `[plugin].version` | string | Semantic version (e.g., `1.0.0`) |
+| `[plugin].description` | string | One-line description |
+| `[plugin].author` | string | Author name or handle |
+| `[marketplace].repo` | string | GitHub repository URL (e.g., `https://github.com/alice/novelist-word-frequency`) |
+| `[marketplace].category` | string | One of the categories defined in `categories.json` |
+| `[marketplace].min_novelist_version` | string | Minimum compatible Novelist version |
 
 ### Optional
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `author_url` | string | Author's homepage or GitHub profile |
-| `tags` | string[] | Free-form tags for discoverability |
-| `screenshots` | string[] | URLs to screenshot images (in plugin's own repo) |
+| `[plugin].permissions` | string[] | Defaults to `[]`; supports `read`, `write`, `ui`, `fs`, `net`/`network`, `ai:http`, `ai:claude-cli` |
+| `[plugin].icon` | string | Relative icon path used by the installed plugin; registry icons come from the submission directory's `icon.png` |
+| `[ui]` | table | Required for UI plugins: `type` (`panel` or `file-handler`), relative `entry`, optional `label`, positive integer `width`, `file_extensions`, boolean `creatable` and `requires_app_reload` |
+| `[marketplace].status` | string | Defaults to `published`; `draft` entries are validated as metadata but omitted from `registry.json` and ZIP checks |
+| `[marketplace].author_url` | string | Author's homepage or GitHub profile |
+| `[marketplace].tags` | string[] | Free-form tags for discoverability |
+| `[marketplace].screenshots` | string[] | URLs to screenshot images (in plugin's own repo) |
+
+Marketplace manifests use the same `[plugin]` / `[ui]` tables that Novelist
+loads after install. Registry-only fields live under `[marketplace]`, so the
+same `manifest.toml` can be shipped inside the release ZIP without a transform.
+
+The parsed release manifest must match all submitted plugin, UI, and marketplace
+metadata, including permissions. A UI release must contain its declared `entry`;
+a command release must contain `index.js`. Entry and icon paths must stay inside
+the plugin directory. JavaScript files are limited to 2MB after decompression;
+inspected HTML and manifest files are limited to 5MB each. The downloaded ZIP is
+limited to 5MB.
 
 ## `categories.json`
 

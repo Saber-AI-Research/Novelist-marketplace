@@ -1,0 +1,20 @@
+[plugin]
+id = "pomodoro-timer"
+name = "Pomodoro Timer"
+version = "1.0.0"
+description = "Writing timer with break reminders using the Pomodoro technique"
+author = "novelist-team"
+permissions = ["ui"]
+
+[ui]
+type = "panel"
+entry = "index.html"
+label = "Pomodoro Timer"
+
+[marketplace]
+status = "draft"
+repo = "https://github.com/Saber-AI-Research/novelist-pomodoro-timer"
+category = "productivity"
+min_novelist_version = "0.1.0"
+author_url = "https://github.com/Saber-AI-Research"
+tags = ["timer", "pomodoro", "productivity", "focus"]

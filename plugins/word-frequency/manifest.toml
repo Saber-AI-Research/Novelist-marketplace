@@ -1,0 +1,20 @@
+[plugin]
+id = "word-frequency"
+name = "Word Frequency"
+version = "1.0.0"
+description = "Analyze word frequency in your document"
+author = "novelist-team"
+permissions = ["read", "ui"]
+
+[ui]
+type = "panel"
+entry = "index.html"
+label = "Word Frequency"
+
+[marketplace]
+status = "draft"
+repo = "https://github.com/Saber-AI-Research/novelist-word-frequency"
+category = "analysis"
+min_novelist_version = "0.1.0"
+author_url = "https://github.com/Saber-AI-Research"
+tags = ["words", "statistics", "analysis"]
