@@ -24,6 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -36,6 +38,25 @@ jobs:
 
       - run: pnpm typecheck
 
-      - run: pnpm validate
+      # Fetch release ZIPs only for plugins this PR touches. Changes to the
+      # validator itself re-check every plugin.
+      - name: Select plugins to check
+        id: scope
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          changed=$(git diff --name-only "origin/$BASE_REF...HEAD")
+          if echo "$changed" | grep -qE '^scripts/'; then
+            echo "args=" >> "$GITHUB_OUTPUT"
+          else
+            dirs=$(echo "$changed" | sed -n 's#^plugins/\([^/]*\)/.*#\1#p' | sort -u | paste -sd, -)
+            echo "args=--zip-only=$dirs" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Directory names come from an untrusted PR: pass them through the
+      # environment, never interpolate them into the script.
+      - run: pnpm validate "$SCOPE_ARGS"
+        env:
+          SCOPE_ARGS: ${{ steps.scope.outputs.args }}
 
       - run: pnpm test

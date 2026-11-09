@@ -60,8 +60,9 @@ label = "Your Plugin Name"
 repo = "https://github.com/you/your-plugin-repo"
 category = "analysis"
 min_novelist_version = "0.1.0"
+sha256 = "<output of: shasum -a 256 your-plugin-1.0.0.zip>"  # the exact ZIP you released
 
-# Optional
+# Optional (URLs must use https)
 author_url = "https://github.com/you"
 tags = ["keyword1", "keyword2"]
 screenshots = ["https://raw.githubusercontent.com/you/repo/main/screenshot.png"]

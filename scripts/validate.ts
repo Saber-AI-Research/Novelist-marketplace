@@ -3,11 +3,12 @@ import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
+import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
 import JSZip from "jszip";
 import { ZodError } from "zod";
 import { parseManifestFile, parseManifestString } from "./shared/toml.js";
-import { listPluginDirs, loadCategories } from "./shared/utils.js";
+import { buildDownloadUrl, listPluginDirs, loadCategories } from "./shared/utils.js";
 import {
   PLUGINS_DIR,
   CATEGORIES_FILE,
@@ -218,6 +219,10 @@ async function validateManifest(pluginDir: string, categoryIds?: readonly string
     );
   }
 
+  if (manifest.status !== "draft" && manifest.sha256 === undefined) {
+    errors.push("manifest.toml: marketplace.sha256: Published plugins must declare the release ZIP sha256");
+  }
+
   const iconPath = join(PLUGINS_DIR, pluginDir, "icon.png");
   if (existsSync(iconPath)) {
     const iconStat = await stat(iconPath);
@@ -274,7 +279,8 @@ async function validateZipArchive(
       const zipManifestContent = await readZipText(zipManifestFile, MAX_ZIP_SIZE);
       const zipManifest = parseManifestString(zipManifestContent);
 
-      if (!isDeepStrictEqual(zipManifest, manifest)) {
+      // The registry-side sha256 describes the ZIP itself and cannot appear inside it.
+      if (!isDeepStrictEqual({ ...zipManifest, sha256: undefined }, { ...manifest, sha256: undefined })) {
         errors.push("ZIP manifest.toml does not match submitted manifest (including permissions and UI configuration)");
       }
     } catch (e) {
@@ -423,15 +429,28 @@ async function fetchAndValidateZip(
   const errors: string[] = [];
   const { repo, version, id } = manifest;
 
-  const zipUrl = `${repo}/releases/download/v${version}/${id}-${version}.zip`;
+  const zipUrl = buildDownloadUrl(repo, id, version);
 
   const buffer = await fetchZipBounded(zipUrl, errors);
   if (!buffer) return errors;
 
+  if (manifest.sha256 !== undefined) {
+    const actual = createHash("sha256").update(new Uint8Array(buffer)).digest("hex");
+    if (actual !== manifest.sha256) {
+      errors.push(`Release ZIP sha256 ${actual} does not match manifest sha256 ${manifest.sha256}`);
+      return errors;
+    }
+  }
+
   return validateZipArchive(buffer, manifest);
 }
 
-async function validateAll(skipZip = false): Promise<ValidationError[]> {
+/**
+ * Manifests are always checked together (duplicate IDs span plugins). ZIPs are
+ * fetched only for `zipDirs` when given, so a PR does not depend on every other
+ * author's release staying reachable.
+ */
+async function validateAll(skipZip = false, zipDirs?: ReadonlySet<string>): Promise<ValidationError[]> {
   const pluginDirs = await listPluginDirs();
   const categoryIds = (await loadCategories(CATEGORIES_FILE)).map((category) => category.id);
   const results: ValidationError[] = [];
@@ -447,7 +466,7 @@ async function validateAll(skipZip = false): Promise<ValidationError[]> {
       }
       seenIds.add(manifest.id);
 
-      if (!skipZip && manifest.status !== "draft") {
+      if (!skipZip && manifest.status !== "draft" && (!zipDirs || zipDirs.has(dir))) {
         const zipErrors = await fetchAndValidateZip(manifest);
         errors.push(...zipErrors);
       }
@@ -463,6 +482,11 @@ async function validateAll(skipZip = false): Promise<ValidationError[]> {
 
 async function main() {
   const skipZip = process.argv.includes("--skip-zip");
+  // --zip-only=a,b limits release ZIP checks to these plugin directories.
+  const zipOnly = process.argv.find((arg) => arg.startsWith("--zip-only="));
+  const zipDirs = zipOnly === undefined
+    ? undefined
+    : new Set(zipOnly.slice("--zip-only=".length).split(",").map((dir) => dir.trim()).filter(Boolean));
 
   console.log("Validating plugins...\n");
 
@@ -473,7 +497,9 @@ async function main() {
 
   console.log(`Found ${pluginDirs.length} plugin(s): ${pluginDirs.join(", ")}\n`);
 
-  const errors = await validateAll(skipZip);
+  if (zipDirs) console.log(`Checking release ZIPs for: ${[...zipDirs].join(", ") || "(none)"}\n`);
+
+  const errors = await validateAll(skipZip, zipDirs);
 
   if (errors.length === 0) {
     console.log("All plugins passed validation.");

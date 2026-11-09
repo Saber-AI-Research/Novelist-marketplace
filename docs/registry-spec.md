@@ -36,9 +36,10 @@ plugins/<plugin-id>/
 | `[plugin].icon` | string | Relative icon path used by the installed plugin; registry icons come from the submission directory's `icon.png` |
 | `[ui]` | table | Required for UI plugins: `type` (`panel` or `file-handler`), relative `entry`, optional `label`, positive integer `width`, `file_extensions`, boolean `creatable` and `requires_app_reload` |
 | `[marketplace].status` | string | Defaults to `published`; `draft` entries are validated as metadata but omitted from `registry.json` and ZIP checks |
-| `[marketplace].author_url` | string | Author's homepage or GitHub profile |
+| `[marketplace].author_url` | string | Author's homepage or GitHub profile (https only) |
 | `[marketplace].tags` | string[] | Free-form tags for discoverability |
-| `[marketplace].screenshots` | string[] | URLs to screenshot images (in plugin's own repo) |
+| `[marketplace].screenshots` | string[] | https URLs to screenshot images (in plugin's own repo) |
+| `[marketplace].sha256` | string | Lowercase hex SHA-256 of the release ZIP. Required unless `status = "draft"`; CI rejects a downloaded ZIP that does not match. Not present in the ZIP's own manifest |
 
 Marketplace manifests use the same `[plugin]` / `[ui]` tables that Novelist
 loads after install. Registry-only fields live under `[marketplace]`, so the
@@ -115,6 +116,7 @@ Each plugin record includes:
 | `created_at` | git history | First submission date |
 | `updated_at` | git history | Last update date |
 | `download_url` | derived | GitHub Release asset URL on author's repo |
+| `sha256` | manifest | SHA-256 of the reviewed ZIP, or `null`. Clients must refuse a download that does not match |
 | `changelog_url` | derived | Link to GitHub Release page for current version |
 | `screenshots` | manifest | Array of screenshot image URLs (optional) |
 
@@ -138,6 +140,7 @@ Each plugin record includes:
   "created_at": "2024-12-01T00:00:00Z",
   "updated_at": "2025-01-10T00:00:00Z",
   "download_url": "https://github.com/alice/novelist-word-frequency/releases/download/v1.1.0/word-frequency-1.1.0.zip",
+  "sha256": "<64 lowercase hex characters>",
   "changelog_url": "https://github.com/alice/novelist-word-frequency/releases/tag/v1.1.0",
   "screenshots": []
 }

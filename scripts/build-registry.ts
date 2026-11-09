@@ -150,6 +150,7 @@ async function buildRegistry(fetchDownloads = false): Promise<Registry> {
       created_at: createdAt,
       updated_at: updatedAt,
       download_url: buildDownloadUrl(manifest.repo, manifest.id, manifest.version),
+      sha256: manifest.sha256 ?? null,
       changelog_url: buildChangelogUrl(manifest.repo, manifest.version),
       screenshots: manifest.screenshots ?? [],
     };

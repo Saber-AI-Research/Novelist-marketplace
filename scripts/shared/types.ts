@@ -29,6 +29,20 @@ const PLUGIN_ID_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SEMVER_REGEX = /^\d+\.\d+\.\d+$/;
 
 const GITHUB_REPO_REGEX = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/;
+const SHA256_REGEX = /^[0-9a-f]{64}$/;
+
+// Registry URLs end up in href/src attributes on the homepage and in the app;
+// only https keeps `javascript:` and `data:` URLs out.
+const HttpsUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => {
+    try {
+      return new URL(value).protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "URL must use https");
 
 const PluginPathSchema = z.string().min(1).refine(
   (path) =>
@@ -66,10 +80,14 @@ const MarketplaceMetaSchema = z.object({
   min_novelist_version: z
     .string()
     .regex(SEMVER_REGEX, "min_novelist_version must be semver"),
-  author_url: z.string().url().optional(),
+  author_url: HttpsUrlSchema.optional(),
   tags: z.array(z.string()).optional(),
-  screenshots: z.array(z.string().url()).optional(),
-});
+  screenshots: z.array(HttpsUrlSchema).optional(),
+  // SHA-256 of the reviewed release ZIP (required for published plugins, see
+  // validate.ts). CI checks the downloaded asset against it, so replacing the
+  // asset after review is caught. The ZIP's own manifest cannot contain it.
+  sha256: z.string().regex(SHA256_REGEX, "sha256 must be 64 lowercase hex characters").optional(),
+  });
 
 export const ManifestTomlSchema = z.object({
   plugin: PluginMetaSchema,
@@ -93,6 +111,7 @@ export const ManifestSchema = ManifestTomlSchema.transform((raw) => ({
   author_url: raw.marketplace.author_url,
   tags: raw.marketplace.tags,
   screenshots: raw.marketplace.screenshots,
+  sha256: raw.marketplace.sha256,
 }));
 
 export type Manifest = z.infer<typeof ManifestSchema>;
@@ -123,6 +142,7 @@ export const PluginRecordSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   download_url: z.string(),
+  sha256: z.string().nullable(),
   changelog_url: z.string(),
   screenshots: z.array(z.string()),
 });
