@@ -28,6 +28,23 @@ describe("ManifestSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it.each(["javascript:alert(1)", "data:text/html,<script>alert(1)</script>", "http://example.com"])(
+    "rejects non-https author_url and screenshot URL %s",
+    (url) => {
+      for (const field of [{ author_url: url }, { screenshots: [url] }]) {
+        const result = ManifestSchema.safeParse({ ...validManifest, marketplace: { ...validManifest.marketplace, ...field } });
+        expect(result.success).toBe(false);
+      }
+    },
+  );
+
+  it("accepts only a lowercase hex sha256", () => {
+    const withHash = (sha256: string) => ManifestSchema.safeParse({ ...validManifest, marketplace: { ...validManifest.marketplace, sha256 } });
+    expect(withHash("a".repeat(64)).success).toBe(true);
+    expect(withHash("A".repeat(64)).success).toBe(false);
+    expect(withHash("a".repeat(63)).success).toBe(false);
+  });
+
   it("accepts a manifest with optional fields", () => {
     const result = ManifestSchema.safeParse({
       ...validManifest,

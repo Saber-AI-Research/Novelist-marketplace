@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import JSZip from "jszip";
-import { fetchZipBounded, isAllowedZipHost, validateZipArchive } from "../scripts/validate.js";
+import { createHash } from "node:crypto";
+import { fetchAndValidateZip, fetchZipBounded, isAllowedZipHost, validateZipArchive } from "../scripts/validate.js";
 import { ManifestSchema, type Manifest } from "../scripts/shared/types.js";
 
 const manifestToml = `[plugin]
@@ -200,6 +201,20 @@ describe("ZIP download boundaries", () => {
     "https://localhost/plugin.zip",
   ])("rejects unsupported ZIP URL %s", (url) => {
     expect(isAllowedZipHost(url)).toBe(false);
+  });
+
+  it("rejects a release ZIP whose sha256 differs from the reviewed one", async () => {
+    const buffer = await zipBuffer({
+      "manifest.toml": manifestToml,
+      "index.html": "<main>Word Frequency</main>",
+    });
+    const sha256 = createHash("sha256").update(new Uint8Array(buffer)).digest("hex");
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockImplementation(async () => new Response(buffer.slice(0))));
+
+    await expect(fetchAndValidateZip(manifest({ sha256 }))).resolves.toEqual([]);
+    const errors = await fetchAndValidateZip(manifest({ sha256: "0".repeat(64) }));
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("does not match manifest sha256");
   });
 
   it("follows a GitHub release redirect to the asset CDN", async () => {
